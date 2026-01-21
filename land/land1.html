@@ -19,17 +19,17 @@
   </div>
 
   <section class="projects">
-    <div class="card">
+    <div class="card" onclick="automo()">
       <h3>Automação Inteligente</h3>
       <p>Criação de scripts e sistemas que otimizam processos e reduzem custos operacionais.</p>
     </div>
 
-    <div class="card">
+    <div class="card" onclick="dev()">
       <h3>Desenvolvimento de Sistemas</h3>
       <p>Soluções personalizadas, focadas em desempenho, segurança e escalabilidade.</p>
     </div>
 
-    <div class="card">
+    <div class="card" onclick="solutions()">
       <h3>Soluções em TI</h3>
       <p>Suporte técnico, integrações e melhoria contínua de sistemas e infraestrutura.</p>
     </div>
@@ -116,6 +116,16 @@ document.querySelectorAll('.card').forEach(card => {
     card.style.transform = 'rotateX(0) rotateY(0)';
   });
 });
+
+function automo() {
+  window.location.href = "../page/automo.html";
+}
+function dev() {
+  window.location.href = "../page/dev.html";
+}
+function solutions() {
+  window.location.href = "../page/solutions.html";
+}
 </script>
 
 </body>
