@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Céu do Hemisfério Sul - Simulação Astronômica</title>
+    <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+    <canvas id="galaxy-canvas"></canvas>
+
+    <div id="panel">
+        <h1>Observador</h1>
+        <label>Data e hora local
+            <input type="datetime-local" id="dtInput">
+        </label>
+        <div class="row">
+            <div>
+                <label>Latitude (°)
+                    <input type="number" id="latInput" value="-23" step="0.1" min="-90" max="90">
+                </label>
+            </div>
+            <div>
+                <label>Longitude (°)
+                    <input type="number" id="lonInput" value="-46" step="0.1" min="-180" max="180">
+                </label>
+            </div>
+        </div>
+        <label>Velocidade da simulação
+            <select id="speedInput">
+                <option value="1">Tempo real</option>
+                <option value="60">60x</option>
+                <option value="600" selected>600x</option>
+                <option value="3600">1h/seg</option>
+                <option value="36000">10h/seg</option>
+            </select>
+        </label>
+        <button id="nowBtn">Usar data/hora atual</button>
+        <div id="info">Carregando...</div>
+    </div>
+
+    <script type="module" src="src/main.js"></script>
+</body>
+</html>

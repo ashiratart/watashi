@@ -1,0 +1,174 @@
+\documentclass[11pt,a4paper]{article}
+
+% Pacotes
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+\usepackage{geometry}
+\geometry{margin=1.2cm}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{xcolor}
+\usepackage{parskip} % remove indentação e melhora espaçamento
+
+% Cores
+\definecolor{mainblue}{RGB}{0,70,130}
+\definecolor{darkgray}{RGB}{80,80,80}
+\definecolor{lightgray}{RGB}{150,150,150}
+
+% Links
+\hypersetup{
+    colorlinks=true,
+    urlcolor=mainblue
+}
+
+% Seções
+\titleformat{\section}
+  {\large\bfseries\color{mainblue}}
+  {}
+  {0em}
+  {}
+  [\color{lightgray}\titlerule]
+
+\titlespacing{\section}{0pt}{10pt}{6pt}
+
+% Listas
+\setlist[itemize]{
+    noitemsep,
+    topsep=2pt,
+    leftmargin=1.2em,
+    label=\textcolor{mainblue}{\small$\bullet$}
+}
+
+\begin{document}
+
+% ======================
+% Cabeçalho
+% ======================
+\begin{center}
+    {\LARGE\textbf{Acácio Marino Silva de Brito}}\\[6pt]
+    
+    {\small \textcolor{darkgray}{Brusque -- SC, Brasil}}\\[4pt]
+    
+    \href{mailto:acaciomarianosilvadebrito@gmail.com}{acaciomarianosilvadebrito@gmail.com}
+    \,|\, +55 99 98250-7211\\
+    
+    \href{https://github.com/ashiratt}{github.com/ashiratt}
+    \,|\, 
+    \href{https://linkedin.com/in/acacio-marino}{linkedin.com/in/acacio-marino}
+    
+    \vspace{6pt}
+    {\footnotesize \textcolor{lightgray}{Profissional com TEA/TDAH (CID11 – 6A02 e 6A05)}}
+\end{center}
+
+\vspace{6pt}
+\hrule
+\vspace{10pt}
+
+% ======================
+% Objetivo
+% ======================
+\section{Objetivo Profissional}
+Atuar nas áreas de \textbf{Infraestrutura de TI} ou \textbf{Desenvolvimento Back-end}, com foco em Linux, automação e desenvolvimento de ferramentas próprias.
+
+% ======================
+% Perfil
+% ======================
+\section{Perfil Profissional}
+Profissional autodidata com atuação em Infraestrutura de TI, Desenvolvimento de Sistemas e Pesquisa Aplicada.
+
+\begin{itemize}
+    \item Administração de servidores Linux e Windows Server
+    \item Automação de processos e integração de sistemas (TOTVS RM, APIs)
+    \item Desenvolvimento full stack sob demanda (web e desktop)
+    \item Integração de APIs REST/SOAP e bancos relacionais
+    \item Projetos open source (Linux From Scratch)
+    \item Foco em desempenho, segurança e eficiência
+\end{itemize}
+
+% ======================
+% Experiência
+% ======================
+\section{Experiência Profissional}
+
+\textbf{Assistente de TI} \hfill {\small\textcolor{darkgray}{Grupo Pasquini -- atual}}
+
+\begin{itemize}
+    \item Integrações com API do TOTVS RM para automação de fluxos internos
+    \item Desenvolvimento de rotinas e scripts na plataforma TOTVS
+    \item Digitalização de fichas técnicas eliminando processos físicos
+    \item Integração entre CAD 3D Lectra e bancos internos
+    \item Administração de Windows Server e SQL Server
+    \item Suporte a impressoras térmicas (Zebra, Argox, Avery)
+    \item Tradução entre linguagens de impressão (ZPL2, BPLB, PPLA)
+\end{itemize}
+
+\vspace{4pt}
+
+\textbf{Desenvolvedor / Administrador de Sistemas} \hfill {\small\textcolor{darkgray}{2023 -- 2024}}
+
+\begin{itemize}
+    \item Desenvolvimento do sistema \textbf{AshiraOS} (Linux From Scratch)
+    \item Administração de servidores Linux (segurança e performance)
+    \item Automação de cobranças (API Asaas) e envio de e-mails
+    \item Modelagem avançada em MySQL/MariaDB (procedures, triggers)
+    \item Desenvolvimento web (PHP, JavaScript)
+\end{itemize}
+
+% ======================
+% Projetos
+% ======================
+\section{Projetos em Destaque}
+
+\textbf{impressoraVirtual (C)}\\
+\href{https://github.com/ashiratt/impressoraVirtual}{github.com/ashiratt/impressoraVirtual}
+
+\textbf{AshiraOS}\\
+\href{https://github.com/ashiratt/AshiraOS}{github.com/ashiratt/AshiraOS}
+
+\textbf{sistema\_simples (PHP, JS, MySQL)}
+
+\textbf{e-commerc (PHP, MySQL)}
+
+\textbf{sinc\_ftp (C)}
+
+\textbf{Meu-Rice (Arch + i3)}
+
+% ======================
+% Formação
+% ======================
+\section{Formação Acadêmica}
+
+\textbf{Engenharia Biomédica (em andamento)}\\
+UniEnsino -- Brasil
+
+\textbf{Cursos Técnicos:}
+Desenvolvimento Web, Suporte Técnico, Design Gráfico
+
+% ======================
+% Habilidades
+% ======================
+\section{Habilidades Técnicas}
+
+\begin{itemize}
+    \item \textbf{Sistemas:} Linux (Debian, Arch, LFS), Windows Server
+    \item \textbf{Linguagens:} PHP, C, JavaScript, Bash, Assembly
+    \item \textbf{Banco de Dados:} MySQL/MariaDB, SQL Server
+    \item \textbf{Dev:} APIs, automação, ETL, sistemas internos
+    \item \textbf{Ferramentas:} Git, VirtualBox, GTK, cron
+\end{itemize}
+
+% ======================
+% Idiomas
+% ======================
+\section{Idiomas}
+
+\begin{itemize}
+    \item Português: Nativo
+    \item Inglês Técnico: Leitura e escrita
+    \item Espanhol: Intermediário
+    \item Japonês: Básico
+\end{itemize}
+
+\end{document}

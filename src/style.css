@@ -1,0 +1,82 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+body {
+    background: #000;
+    overflow: hidden;
+    height: 100vh;
+    width: 100vw;
+    font-family: 'Segoe UI', Arial, sans-serif;
+}
+canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(circle at 30% 40%, #0a0f20, #03050a 90%);
+}
+
+#panel {
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    background: rgba(10, 12, 20, 0.78);
+    border: 1px solid rgba(150, 170, 210, 0.25);
+    border-radius: 10px;
+    padding: 12px 14px;
+    color: #cfd8ea;
+    font-size: 12px;
+    backdrop-filter: blur(4px);
+    z-index: 10;
+    max-width: 240px;
+}
+#panel h1 {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    color: #ffecb3;
+    margin-bottom: 8px;
+    text-transform: uppercase;
+}
+#panel label {
+    display: block;
+    margin-top: 8px;
+    font-size: 11px;
+    color: #9aa8c4;
+}
+#panel input, #panel select {
+    width: 100%;
+    margin-top: 3px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(150,170,210,0.3);
+    border-radius: 5px;
+    color: #eef2fb;
+    padding: 4px 6px;
+    font-size: 12px;
+}
+#panel .row {
+    display: flex;
+    gap: 6px;
+}
+#panel .row > div { flex: 1; }
+#nowBtn {
+    margin-top: 10px;
+    width: 100%;
+    padding: 6px;
+    background: rgba(255, 236, 179, 0.15);
+    border: 1px solid rgba(255, 236, 179, 0.4);
+    color: #ffecb3;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 11px;
+}
+#nowBtn:hover { background: rgba(255, 236, 179, 0.25); }
+#info {
+    margin-top: 10px;
+    padding-top: 8px;
+    border-top: 1px solid rgba(150,170,210,0.2);
+    font-size: 11px;
+    color: #8b98b8;
+    line-height: 1.5;
+}

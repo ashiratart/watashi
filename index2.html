@@ -1,0 +1,729 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Céu do Hemisfério Sul - Simulação Astronômica</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #000;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            font-family: 'Segoe UI', Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle at 30% 40%, #0a0f20, #03050a 90%);
+        }
+
+        #panel {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            background: rgba(10, 12, 20, 0.78);
+            border: 1px solid rgba(150, 170, 210, 0.25);
+            border-radius: 10px;
+            padding: 12px 14px;
+            color: #cfd8ea;
+            font-size: 12px;
+            backdrop-filter: blur(4px);
+            z-index: 10;
+            max-width: 240px;
+        }
+        #panel h1 {
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            color: #ffecb3;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        #panel label {
+            display: block;
+            margin-top: 8px;
+            font-size: 11px;
+            color: #9aa8c4;
+        }
+        #panel input, #panel select {
+            width: 100%;
+            margin-top: 3px;
+            background: rgba(255,255,255,0.06);
+            border: 1px solid rgba(150,170,210,0.3);
+            border-radius: 5px;
+            color: #eef2fb;
+            padding: 4px 6px;
+            font-size: 12px;
+        }
+        #panel .row {
+            display: flex;
+            gap: 6px;
+        }
+        #panel .row > div { flex: 1; }
+        #nowBtn {
+            margin-top: 10px;
+            width: 100%;
+            padding: 6px;
+            background: rgba(255, 236, 179, 0.15);
+            border: 1px solid rgba(255, 236, 179, 0.4);
+            color: #ffecb3;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        #nowBtn:hover { background: rgba(255, 236, 179, 0.25); }
+        #info {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid rgba(150,170,210,0.2);
+            font-size: 11px;
+            color: #8b98b8;
+            line-height: 1.5;
+        }
+        #toggleBtn {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 11;
+            background: rgba(10,12,20,0.78);
+            border: 1px solid rgba(150,170,210,0.25);
+            color: #ffecb3;
+            border-radius: 8px;
+            width: 30px;
+            height: 30px;
+            cursor: pointer;
+            display: none;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="galaxy-canvas"></canvas>
+
+    <div id="panel">
+        <h1>Observador</h1>
+        <label>Data e hora local
+            <input type="datetime-local" id="dtInput">
+        </label>
+        <div class="row">
+            <div>
+                <label>Latitude (°)
+                    <input type="number" id="latInput" value="-23" step="0.1" min="-90" max="90">
+                </label>
+            </div>
+            <div>
+                <label>Longitude (°)
+                    <input type="number" id="lonInput" value="-46" step="0.1" min="-180" max="180">
+                </label>
+            </div>
+        </div>
+        <label>Velocidade da simulação
+            <select id="speedInput">
+                <option value="1">Tempo real</option>
+                <option value="60">60x</option>
+                <option value="600" selected>600x</option>
+                <option value="3600">1h/seg</option>
+                <option value="36000">10h/seg</option>
+            </select>
+        </label>
+        <button id="nowBtn">Usar data/hora atual</button>
+        <div id="info">Carregando...</div>
+    </div>
+
+<script>
+(function() {
+
+const canvas = document.getElementById("galaxy-canvas");
+const ctx = canvas.getContext("2d");
+
+let w, h;
+
+// -------------------------------
+// ESTADO DO OBSERVADOR (controlado pela UI)
+// -------------------------------
+let observerLatDeg = -23;
+let observerLonDeg = -46;
+let observerLat = observerLatDeg * Math.PI / 180;
+let simSpeed = 600; // multiplicador de tempo
+let simTime = new Date(); // horário simulado (avança a cada frame)
+
+const dtInput = document.getElementById("dtInput");
+const latInput = document.getElementById("latInput");
+const lonInput = document.getElementById("lonInput");
+const speedInput = document.getElementById("speedInput");
+const nowBtn = document.getElementById("nowBtn");
+const infoBox = document.getElementById("info");
+
+function toLocalInputValue(date) {
+    const pad = n => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+function setNow() {
+    simTime = new Date();
+    dtInput.value = toLocalInputValue(simTime);
+}
+setNow();
+
+dtInput.addEventListener("change", () => {
+    if (dtInput.value) simTime = new Date(dtInput.value);
+});
+latInput.addEventListener("input", () => {
+    observerLatDeg = parseFloat(latInput.value) || 0;
+    observerLat = observerLatDeg * Math.PI / 180;
+});
+lonInput.addEventListener("input", () => {
+    observerLonDeg = parseFloat(lonInput.value) || 0;
+});
+speedInput.addEventListener("change", () => {
+    simSpeed = parseFloat(speedInput.value);
+});
+nowBtn.addEventListener("click", setNow);
+
+// -------------------------------
+// TEMPO SIDERAL LOCAL REAL (GMST + longitude)
+// -------------------------------
+function dateToJD(date) {
+    return date.getTime() / 86400000 + 2440587.5;
+}
+
+function getLST(date, lonDeg) {
+    const JD = dateToJD(date);
+    const T = (JD - 2451545.0) / 36525;
+    let GMSTdeg = 280.46061837
+                + 360.98564736629 * (JD - 2451545.0)
+                + 0.000387933 * T * T
+                - (T * T * T) / 38710000;
+    GMSTdeg = ((GMSTdeg % 360) + 360) % 360;
+    let LSTdeg = (GMSTdeg + lonDeg + 360) % 360;
+    return LSTdeg * Math.PI / 180;
+}
+
+let LST = getLST(simTime, observerLonDeg);
+
+// -------------------------------
+// ESTRELAS DAS CONSTELAÇÕES (com nomes)
+// -------------------------------
+const constellationStars = [
+    // CRUX (Cruzeiro do Sul)
+    { name: "Acrux", ra: 12.45, dec: -63.1, mag: 0.8, color: "#ffffff" },
+    { name: "Mimosa", ra: 12.79, dec: -59.7, mag: 1.2, color: "#dfe9ff" },
+    { name: "Gacrux", ra: 12.52, dec: -57.1, mag: 1.6, color: "#dfe9ff" },
+    { name: "DeltaCrucis", ra: 12.25, dec: -58.7, mag: 2.7, color: "#bcd4ff" },
+    { name: "EpsilonCrucis", ra: 12.36, dec: -60.4, mag: 3.6, color: "#bcd4ff" },
+
+    // CENTAURUS
+    { name: "AlphaCen", ra: 14.66, dec: -60.8, mag: -0.27, color: "#ffffff" },
+    { name: "BetaCen", ra: 14.10, dec: -60.4, mag: 0.6, color: "#ffffff" },
+    { name: "GammaCen", ra: 12.68, dec: -48.9, mag: 2.2, color: "#dfe9ff" },
+    { name: "ThetaCen", ra: 14.08, dec: -36.4, mag: 2.1, color: "#dfe9ff" },
+
+    // CARINA
+    { name: "Canopus", ra: 6.40, dec: -52.7, mag: -0.72, color: "#ffffff" },
+    { name: "Miaplacidus", ra: 9.23, dec: -69.7, mag: 1.7, color: "#dfe9ff" },
+    { name: "EpsilonCar", ra: 8.37, dec: -59.5, mag: 2.3, color: "#bcd4ff" },
+    { name: "IotaCar", ra: 9.30, dec: -59.3, mag: 2.2, color: "#bcd4ff" },
+
+    // VELA
+    { name: "GammaVel", ra: 8.17, dec: -47.3, mag: 1.8, color: "#dfe9ff" },
+    { name: "DeltaVel", ra: 8.75, dec: -54.7, mag: 2.0, color: "#dfe9ff" },
+    { name: "KappaVel", ra: 9.37, dec: -55.0, mag: 2.5, color: "#bcd4ff" },
+
+    // SCORPIUS (Escorpião)
+    { name: "Antares", ra: 16.50, dec: -26.4, mag: 0.96, color: "#ffccaa" },
+    { name: "Shaula", ra: 17.58, dec: -37.1, mag: 1.62, color: "#dfe9ff" },
+    { name: "Sargas", ra: 17.63, dec: -42.9, mag: 1.86, color: "#dfe9ff" },
+    { name: "Dschubba", ra: 16.00, dec: -22.6, mag: 2.29, color: "#bcd4ff" },
+    { name: "PiSco", ra: 15.95, dec: -26.0, mag: 2.89, color: "#bcd4ff" },
+
+    // SAGITTARIUS (Sagitário)
+    { name: "KausAustralis", ra: 18.42, dec: -34.4, mag: 1.79, color: "#dfe9ff" },
+    { name: "Nunki", ra: 18.92, dec: -26.3, mag: 2.02, color: "#dfe9ff" },
+    { name: "Ascella", ra: 19.02, dec: -29.9, mag: 2.60, color: "#bcd4ff" },
+    { name: "KausMedia", ra: 18.35, dec: -29.8, mag: 2.70, color: "#bcd4ff" },
+
+    // TRIANGULUM AUSTRALE (Triângulo Austral)
+    { name: "Atria", ra: 16.80, dec: -69.0, mag: 1.91, color: "#dfe9ff" },
+    { name: "BetaTrA", ra: 15.92, dec: -63.4, mag: 2.83, color: "#bcd4ff" },
+    { name: "GammaTrA", ra: 15.30, dec: -68.7, mag: 2.87, color: "#bcd4ff" },
+
+    // ARA (Altar)
+    { name: "BetaAra", ra: 17.43, dec: -55.5, mag: 2.84, color: "#bcd4ff" },
+    { name: "GammaAra", ra: 17.43, dec: -56.4, mag: 3.31, color: "#bcd4ff" },
+
+    // LUPUS (Lobo)
+    { name: "AlphaLup", ra: 14.68, dec: -47.4, mag: 2.30, color: "#bcd4ff" },
+    { name: "BetaLup", ra: 14.97, dec: -43.1, mag: 2.68, color: "#bcd4ff" },
+
+    // Outras estrelas brilhantes
+    { name: "Fomalhaut", ra: 22.95, dec: -29.6, mag: 1.16, color: "#dfe9ff" },
+    { name: "Achernar", ra: 1.63, dec: -57.2, mag: 0.45, color: "#ffffff" },
+    { name: "Peacock", ra: 20.42, dec: -56.7, mag: 1.94, color: "#dfe9ff" }
+];
+
+// -------------------------------
+// LINHAS DAS CONSTELAÇÕES
+// -------------------------------
+const constellationLines = {
+    Crux: [
+        ["Gacrux", "Acrux"],
+        ["DeltaCrucis", "EpsilonCrucis"],
+        ["Mimosa", "Acrux"]
+    ],
+    Centaurus: [
+        ["AlphaCen", "BetaCen"],
+        ["BetaCen", "GammaCen"],
+        ["GammaCen", "ThetaCen"],
+        ["ThetaCen", "AlphaCen"]
+    ],
+    Carina: [
+        ["Canopus", "Miaplacidus"],
+        ["Miaplacidus", "IotaCar"],
+        ["IotaCar", "EpsilonCar"],
+        ["EpsilonCar", "Canopus"]
+    ],
+    Vela: [
+        ["GammaVel", "DeltaVel"],
+        ["DeltaVel", "KappaVel"],
+        ["KappaVel", "GammaVel"]
+    ],
+    Scorpius: [
+        ["Antares", "Dschubba"],
+        ["Dschubba", "PiSco"],
+        ["PiSco", "Antares"],
+        ["Antares", "Sargas"],
+        ["Sargas", "Shaula"]
+    ],
+    Sagittarius: [
+        ["KausAustralis", "KausMedia"],
+        ["KausMedia", "Ascella"],
+        ["Ascella", "Nunki"],
+        ["Nunki", "KausAustralis"]
+    ],
+    TriangulumAustrale: [
+        ["Atria", "BetaTrA"],
+        ["BetaTrA", "GammaTrA"],
+        ["GammaTrA", "Atria"]
+    ],
+    Ara: [
+        ["BetaAra", "GammaAra"]
+    ],
+    Lupus: [
+        ["AlphaLup", "BetaLup"]
+    ]
+};
+
+// -------------------------------
+// GERAR ESTRELAS DE FUNDO (realistas)
+// Cada estrela recebe um "seed" fixo para cintilação estável.
+// -------------------------------
+const STAR_COUNT = 600;
+
+function generateSouthernStars(count){
+    const stars = [];
+    for(let i=0; i<count; i++){
+        let ra = Math.random() * 24;
+        let dec = -Math.pow(Math.random(), 0.85) * 90;
+        let mag = 4 + Math.random() * 5;
+        let color;
+        if(mag < 5) color = "#ffffff";
+        else if(mag < 7) color = "#dfe9ff";
+        else color = "#bcd4ff";
+        stars.push({ ra, dec, mag, color, seed: Math.random() * 1000 });
+    }
+    return stars;
+}
+
+const backgroundStars = generateSouthernStars(STAR_COUNT);
+constellationStars.forEach((s, i) => s.seed = i * 37.5);
+
+const allStars = [...backgroundStars, ...constellationStars];
+
+// -------------------------------
+// CONVERSÕES COORDENADAS
+// -------------------------------
+function raToRad(ra){ return (ra * 15) * Math.PI/180; }
+function decToRad(dec){ return dec * Math.PI/180; }
+
+function equatorialToHorizontal(ra, dec){
+    let H = LST - ra;
+    let alt = Math.asin(
+        Math.sin(dec)*Math.sin(observerLat) +
+        Math.cos(dec)*Math.cos(observerLat)*Math.cos(H)
+    );
+    let cosAz = (Math.sin(dec) - Math.sin(alt)*Math.sin(observerLat)) /
+                (Math.cos(alt)*Math.cos(observerLat));
+    cosAz = Math.max(-1, Math.min(1, cosAz));
+    let az = Math.acos(cosAz);
+    if (Math.sin(H) > 0) az = 2*Math.PI - az;
+    return { alt, az };
+}
+
+// Horizonte na base (y = h), zênite no topo (y = 0). Sul centralizado.
+function project(alt, az){
+    let x = (az * w / (2 * Math.PI) + w/2) % w;
+    let y = h * (1 - alt / (Math.PI/2));
+    return { x, y };
+}
+
+// -------------------------------
+// EXTINÇÃO ATMOSFÉRICA
+// Estrelas perto do horizonte atenuam (atravessam mais atmosfera)
+// -------------------------------
+function airmass(altRad){
+    const altDeg = altRad * 180 / Math.PI;
+    if (altDeg < 3) return 20;
+    return 1 / (Math.sin(altRad) + 0.50572 * Math.pow(altDeg + 6.07995, -1.6364));
+}
+
+function extinctionFactor(altRad){
+    const k = 0.28; // coeficiente de extinção típico (mag/airmass)
+    const X = airmass(altRad);
+    return Math.pow(10, -0.4 * k * (X - 1));
+}
+
+// -------------------------------
+// CINTILAÇÃO (twinkling)
+// Mais forte perto do horizonte, sutil no zênite
+// -------------------------------
+function twinkleFactor(seed, tMs, altRad){
+    const amount = 0.15 + 0.35 * (1 - Math.sin(Math.max(altRad, 0.01)));
+    return 1 + amount * Math.sin(tMs * 0.006 + seed);
+}
+
+// -------------------------------
+// VIA LÁCTEA
+// -------------------------------
+function drawMilkyWay() {
+    const decNGP = 27.13 * Math.PI/180;
+    const raNGP = 192.85 * Math.PI/180;
+    const lStep = 0.02;
+    const l0 = 123 * Math.PI/180;
+
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+
+    for (let l = 0; l < 2*Math.PI; l += lStep) {
+        let sinDec = Math.cos(decNGP) * Math.sin(l - l0);
+        sinDec = Math.max(-1, Math.min(1, sinDec));
+        let dec = Math.asin(sinDec);
+
+        let cosDec = Math.cos(dec);
+        let cosDeltaRA = Math.cos(l - l0) / cosDec;
+        let sinDeltaRA = - Math.sin(decNGP) * Math.sin(l - l0) / cosDec;
+
+        cosDeltaRA = Math.max(-1, Math.min(1, cosDeltaRA));
+        sinDeltaRA = Math.max(-1, Math.min(1, sinDeltaRA));
+
+        let deltaRA = Math.atan2(sinDeltaRA, cosDeltaRA);
+        let ra = raNGP + deltaRA;
+        if (ra < 0) ra += 2*Math.PI;
+        if (ra > 2*Math.PI) ra -= 2*Math.PI;
+
+        let { alt, az } = equatorialToHorizontal(ra, dec);
+        if (alt > 0) {
+            let {x, y} = project(alt, az);
+            let ext = extinctionFactor(alt);
+            ctx.beginPath();
+            let size = 40 + 30 * Math.cos(l);
+            if (size < 20) size = 20;
+            let gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+            gradient.addColorStop(0, `rgba(255, 255, 240, ${0.3*ext})`);
+            gradient.addColorStop(0.5, `rgba(200, 200, 255, ${0.1*ext})`);
+            gradient.addColorStop(1, "rgba(255, 255, 255, 0)");
+            ctx.fillStyle = gradient;
+            ctx.arc(x, y, size, 0, 2*Math.PI);
+            ctx.fill();
+        }
+    }
+
+    ctx.restore();
+}
+
+// -------------------------------
+// MARCAÇÕES DE ALTITUDE
+// -------------------------------
+function drawAltitudeMarkings() {
+    ctx.save();
+    ctx.globalAlpha = 0.25;
+    ctx.strokeStyle = "#8a7a5a";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+
+    const altitudes = [30, 60];
+    altitudes.forEach(deg => {
+        let alt = deg * Math.PI/180;
+        let y = h * (1 - alt / (Math.PI/2));
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+    });
+
+    ctx.setLineDash([]);
+    ctx.globalAlpha = 0.8;
+    ctx.font = "bold 14px 'Segoe UI', Arial, sans-serif";
+    ctx.fillStyle = "#d4c4a4";
+    ctx.shadowColor = "#000";
+    ctx.shadowBlur = 6;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    altitudes.forEach(deg => {
+        let alt = deg * Math.PI/180;
+        let y = h * (1 - alt / (Math.PI/2));
+        if (y > 20 && y < h-20) ctx.fillText(deg + "°", 30, y);
+    });
+
+    ctx.beginPath();
+    ctx.arc(30, 10, 6, 0, 2*Math.PI);
+    ctx.fillStyle = "#ffecb3";
+    ctx.fill();
+    ctx.fillStyle = "#ffffff";
+    ctx.fillText("Zênite", 30, 30);
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+}
+
+// -------------------------------
+// HORIZONTE E PONTOS CARDEAIS
+// -------------------------------
+function drawHorizonAndCardinals() {
+    ctx.save();
+    ctx.strokeStyle = "rgba(160, 120, 60, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+    ctx.lineTo(w, h);
+    ctx.stroke();
+
+    const cardinals = [
+        { name: "N", az: 0 },
+        { name: "L", az: Math.PI/2 },
+        { name: "S", az: Math.PI },
+        { name: "O", az: 3*Math.PI/2 }
+    ];
+
+    ctx.font = "bold 16px 'Segoe UI', Arial, sans-serif";
+    ctx.fillStyle = "#c0b090";
+    ctx.shadowColor = "#000";
+    ctx.shadowBlur = 6;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    cardinals.forEach(c => {
+        let { x } = project(0, c.az);
+        let y = h;
+        ctx.beginPath();
+        ctx.arc(x, y - 10, 5, 0, 2*Math.PI);
+        ctx.fillStyle = "#a58e6d";
+        ctx.fill();
+        ctx.fillStyle = "#ffecb3";
+        ctx.fillText(c.name, x, y - 30);
+    });
+
+    ctx.shadowBlur = 0;
+    ctx.restore();
+}
+
+// -------------------------------
+// LUA - posição aproximada + fase real
+// -------------------------------
+let moonRA = raToRad(10);
+let moonDec = decToRad(-20);
+
+function updateMoonPosition(dtSimMs) {
+    // Aproximação simplificada do movimento da Lua contra as estrelas
+    // (~13.2°/dia). Não é uma efeméride precisa, mas mantém coerência temporal.
+    const degPerMs = 13.2 / 86400000;
+    moonRA += (degPerMs * Math.PI/180) * dtSimMs;
+    if (moonRA > 2*Math.PI) moonRA -= 2*Math.PI;
+}
+
+function getMoonPhase(date) {
+    // Ciclo sinódico real (~29.53 dias) a partir de uma lua nova de referência
+    const synodic = 29.530588853;
+    const refNewMoon = Date.UTC(2000, 0, 6, 18, 14) / 1000; // s
+    const nowS = date.getTime() / 1000;
+    const daysSince = (nowS - refNewMoon) / 86400;
+    let age = ((daysSince % synodic) + synodic) % synodic;
+    let phaseFrac = age / synodic; // 0..1 (0 = nova, 0.5 = cheia)
+    let illum = (1 - Math.cos(2 * Math.PI * phaseFrac)) / 2;
+    return { phaseFrac, illum, waxing: phaseFrac < 0.5, age };
+}
+
+function drawMoonDisc(x, y, r, phaseFrac, illum, waxing) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, 2*Math.PI);
+    ctx.clip();
+
+    // Lado escuro (base)
+    ctx.fillStyle = "#0d1220";
+    ctx.fillRect(-r, -r, r*2, r*2);
+
+    // Metade iluminada (lado depende de crescente/minguante)
+    ctx.beginPath();
+    if (waxing) {
+        ctx.arc(0, 0, r, -Math.PI/2, Math.PI/2);
+    } else {
+        ctx.arc(0, 0, r, Math.PI/2, -Math.PI/2);
+    }
+    ctx.fillStyle = "#f0e6c0";
+    ctx.fill();
+
+    // Terminador (elipse) ajusta quanto dessa metade está de fato iluminado
+    const k = Math.abs(Math.cos(phaseFrac * 2 * Math.PI));
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * k, r, 0, 0, 2*Math.PI);
+    ctx.fillStyle = illum > 0.5 ? "#f0e6c0" : "#0d1220";
+    ctx.fill();
+
+    // Crateras sutis
+    ctx.globalAlpha = 0.25;
+    ctx.fillStyle = "#a09070";
+    ctx.beginPath(); ctx.arc(-r*0.3, -r*0.2, r*0.15, 0, 2*Math.PI); ctx.fill();
+    ctx.beginPath(); ctx.arc(r*0.35, r*0.25, r*0.18, 0, 2*Math.PI); ctx.fill();
+    ctx.globalAlpha = 1;
+
+    ctx.restore();
+}
+
+function drawMoon(nowMs) {
+    let { alt, az } = equatorialToHorizontal(moonRA, moonDec);
+    if (alt <= 0) return;
+
+    let { x, y } = project(alt, az);
+    let moonSize = 25;
+    const { phaseFrac, illum, waxing, age } = getMoonPhase(simTime);
+
+    ctx.save();
+    ctx.shadowColor = "rgba(255, 255, 200, 0.8)";
+    ctx.shadowBlur = 25 + 15 * illum;
+    ctx.beginPath();
+    ctx.arc(x, y, moonSize * 0.9, 0, 2 * Math.PI);
+    ctx.fillStyle = `rgba(255, 255, 220, ${0.15 + 0.2*illum})`;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.restore();
+
+    drawMoonDisc(x, y, moonSize, phaseFrac, illum, waxing);
+
+    return { illum, age };
+}
+
+// -------------------------------
+// DESENHO PRINCIPAL
+// -------------------------------
+function drawSky(nowMs){
+    ctx.fillStyle = "#000814";
+    ctx.fillRect(0,0,w,h);
+
+    drawMilkyWay();
+
+    const projectedStars = {};
+
+    for(let s of allStars){
+        let ra = raToRad(s.ra);
+        let dec = decToRad(s.dec);
+        let {alt, az} = equatorialToHorizontal(ra, dec);
+
+        if(alt > 0){
+            let {x,y} = project(alt, az);
+            let size = 5 - (s.mag || 5);
+            if (s.mag < 0) size = 7;
+            size = Math.max(size, 1.0);
+            size = Math.min(size, 6);
+
+            const ext = extinctionFactor(alt);
+            const twk = twinkleFactor(s.seed, nowMs, alt);
+
+            ctx.globalAlpha = Math.max(0, Math.min(1, 0.9 * ext * twk));
+            ctx.beginPath();
+            ctx.arc(x, y, size, 0, 2*Math.PI);
+            ctx.fillStyle = s.color || "white";
+            ctx.fill();
+
+            if(s.name){
+                projectedStars[s.name] = {x, y};
+            }
+        }
+    }
+    ctx.globalAlpha = 1;
+
+    const moonInfo = drawMoon(nowMs);
+
+    ctx.strokeStyle = "rgba(180,220,255,0.6)";
+    ctx.lineWidth = 1.5;
+
+    for(let constName in constellationLines){
+        const lines = constellationLines[constName];
+        for(let [starA, starB] of lines){
+            if(projectedStars[starA] && projectedStars[starB]){
+                ctx.beginPath();
+                ctx.moveTo(projectedStars[starA].x, projectedStars[starA].y);
+                ctx.lineTo(projectedStars[starB].x, projectedStars[starB].y);
+                ctx.stroke();
+            }
+        }
+    }
+
+    drawHorizonAndCardinals();
+    drawAltitudeMarkings();
+
+    ctx.globalAlpha = 1;
+
+    return moonInfo;
+}
+
+// -------------------------------
+// ANIMAÇÃO
+// -------------------------------
+let lastTs = null;
+
+function animate(ts){
+    if (lastTs === null) lastTs = ts;
+    const dtRealMs = ts - lastTs;
+    lastTs = ts;
+
+    const dtSimMs = dtRealMs * simSpeed;
+    simTime = new Date(simTime.getTime() + dtSimMs);
+
+    LST = getLST(simTime, observerLonDeg);
+    updateMoonPosition(dtSimMs);
+
+    const moonInfo = drawSky(ts);
+
+    // Atualiza painel de informação
+    const illumPct = moonInfo ? Math.round(moonInfo.illum * 100) : 0;
+    infoBox.textContent =
+        simTime.toLocaleString('pt-BR') +
+        (moonInfo ? ` · Lua: ${illumPct}% iluminada` : ' · Lua abaixo do horizonte');
+
+    requestAnimationFrame(animate);
+}
+
+function resize(){
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+}
+
+window.addEventListener("resize", resize);
+resize();
+requestAnimationFrame(animate);
+
+})();
+</script>
+
+</body>
+</html>
