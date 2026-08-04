@@ -6,47 +6,56 @@ import {
     extinctionFactor, twinkleFactor, getMoonPhase
 } from './astro.js';
 
-export function drawMilkyWay(ctx, w, h, lst, observerLat) {
-    const decNGP = 27.13 * Math.PI / 180;
-    const raNGP = 192.85 * Math.PI / 180;
-    const lStep = 0.02;
-    const l0 = 123 * Math.PI / 180;
+// Estilo visual de cada nível de densidade real da Via Láctea, do mais
+// fraco/largo (ol1, halo externo) ao mais brilhante/estreito (ol5, núcleo
+// em Sagitário/Escorpião/Carina). Valores de cor/largura são artísticos;
+// a FORMA vem de dados reais (ver src/data/milky-way.js).
+const MW_BAND_STYLE = {
+    ol1: { rgb: '210,220,255', width: 55, blur: 45, alpha: 0.05 },
+    ol2: { rgb: '215,220,255', width: 40, blur: 35, alpha: 0.06 },
+    ol3: { rgb: '225,225,255', width: 28, blur: 26, alpha: 0.08 },
+    ol4: { rgb: '235,230,250', width: 18, blur: 18, alpha: 0.11 },
+    ol5: { rgb: '255,250,240', width: 10, blur: 12, alpha: 0.16 }
+};
 
+// bands: MILKY_WAY_BANDS de src/data/milky-way.js — cada anel em [ra_horas, dec_graus]
+export function drawMilkyWay(ctx, bands, w, h, lst, observerLat) {
     ctx.save();
-    ctx.globalAlpha = 0.15;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    for (let l = 0; l < 2 * Math.PI; l += lStep) {
-        let sinDec = Math.cos(decNGP) * Math.sin(l - l0);
-        sinDec = Math.max(-1, Math.min(1, sinDec));
-        const dec = Math.asin(sinDec);
+    for (const band of bands) {
+        const style = MW_BAND_STYLE[band.id];
+        if (!style) continue;
 
-        const cosDec = Math.cos(dec);
-        let cosDeltaRA = Math.cos(l - l0) / cosDec;
-        let sinDeltaRA = -Math.sin(decNGP) * Math.sin(l - l0) / cosDec;
-        cosDeltaRA = Math.max(-1, Math.min(1, cosDeltaRA));
-        sinDeltaRA = Math.max(-1, Math.min(1, sinDeltaRA));
+        ctx.strokeStyle = `rgba(${style.rgb}, ${style.alpha})`;
+        ctx.lineWidth = style.width;
+        ctx.shadowColor = `rgba(${style.rgb}, ${style.alpha * 1.5})`;
+        ctx.shadowBlur = style.blur;
 
-        let deltaRA = Math.atan2(sinDeltaRA, cosDeltaRA);
-        let ra = raNGP + deltaRA;
-        if (ra < 0) ra += 2 * Math.PI;
-        if (ra > 2 * Math.PI) ra -= 2 * Math.PI;
-
-        const { alt, az } = equatorialToHorizontal(ra, dec, lst, observerLat);
-        if (alt > 0) {
-            const { x, y } = project(alt, az, w, h);
-            const ext = extinctionFactor(alt);
-            let size = 40 + 30 * Math.cos(l);
-            if (size < 20) size = 20;
-            const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
-            gradient.addColorStop(0, `rgba(255, 255, 240, ${0.3 * ext})`);
-            gradient.addColorStop(0.5, `rgba(200, 200, 255, ${0.1 * ext})`);
-            gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-            ctx.fillStyle = gradient;
+        for (const ring of band.rings) {
             ctx.beginPath();
-            ctx.arc(x, y, size, 0, 2 * Math.PI);
-            ctx.fill();
+            let prevX = null;
+
+            for (const [raHours, decDeg] of ring) {
+                const ra = raToRad(raHours);
+                const dec = decToRad(decDeg);
+                const { alt, az } = equatorialToHorizontal(ra, dec, lst, observerLat);
+                const { x, y } = project(alt, az, w, h);
+
+                // Quebra o traço quando o ponto "pula" pro outro lado do canvas
+                // (costura em RA=0h/24h da projeção equirretangular).
+                if (prevX === null || Math.abs(x - prevX) > w / 2) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+                prevX = x;
+            }
+            ctx.stroke();
         }
     }
+
     ctx.restore();
 }
 
@@ -211,6 +220,51 @@ function drawMoonDisc(ctx, x, y, r, phaseFrac, illum, waxing) {
     ctx.globalAlpha = 1;
 
     ctx.restore();
+}
+
+// planets: array no formato retornado por getVisiblePlanets() (src/planets.js)
+// — ra em horas, dec em graus, mesmo padrão do catálogo de estrelas.
+export function drawPlanets(ctx, planets, w, h, lst, observerLat, nowMs) {
+    const projected = {};
+
+    for (const p of planets) {
+        const ra = raToRad(p.ra);
+        const dec = decToRad(p.dec);
+        const { alt, az } = equatorialToHorizontal(ra, dec, lst, observerLat);
+        if (alt <= 0) continue;
+
+        const { x, y } = project(alt, az, w, h);
+        const ext = extinctionFactor(alt);
+        const twk = twinkleFactor(p.key.length * 17, nowMs, alt); // cintilação bem sutil
+        const size = p.size;
+
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(1, ext * (0.75 + 0.25 * twk)));
+
+        // Leve glow — planetas não "piscam" como estrelas, brilham de forma mais estável
+        ctx.shadowColor = p.color;
+        ctx.shadowBlur = size * 2.5;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, 2 * Math.PI);
+        ctx.fillStyle = p.color;
+        ctx.fill();
+        ctx.shadowBlur = 0;
+
+        ctx.restore();
+
+        // Rótulo do nome
+        ctx.save();
+        ctx.globalAlpha = Math.max(0, Math.min(0.85, ext));
+        ctx.font = "11px 'Segoe UI', Arial, sans-serif";
+        ctx.fillStyle = '#dfe6f5';
+        ctx.textAlign = 'center';
+        ctx.fillText(p.name, x, y - size - 8);
+        ctx.restore();
+
+        projected[p.name] = { x, y };
+    }
+    ctx.globalAlpha = 1;
+    return projected;
 }
 
 // moonPos: { ra, dec } em radianos já calculados pelo chamador

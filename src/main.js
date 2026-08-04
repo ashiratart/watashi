@@ -3,10 +3,12 @@
 // -------------------------------------------------------------
 import { REAL_STARS } from './data/stars-catalog.js';
 import { CONSTELLATION_LINES } from './data/constellations.js';
+import { MILKY_WAY_BANDS } from './data/milky-way.js';
 import { getLST, raToRad, decToRad } from './astro.js';
+import { getVisiblePlanets } from './planets.js';
 import {
     drawMilkyWay, drawStars, drawConstellationLines,
-    drawAltitudeMarkings, drawHorizonAndCardinals, drawMoon
+    drawAltitudeMarkings, drawHorizonAndCardinals, drawMoon, drawPlanets
 } from './render.js';
 
 const canvas = document.getElementById('galaxy-canvas');
@@ -88,9 +90,12 @@ function drawSky(nowMs) {
     ctx.fillStyle = '#000814';
     ctx.fillRect(0, 0, w, h);
 
-    drawMilkyWay(ctx, w, h, LST, observerLat);
+    drawMilkyWay(ctx, MILKY_WAY_BANDS, w, h, LST, observerLat);
 
     const projectedStars = drawStars(ctx, stars, w, h, LST, observerLat, nowMs);
+
+    const planets = getVisiblePlanets(simTime);
+    const projectedPlanets = drawPlanets(ctx, planets, w, h, LST, observerLat, nowMs);
 
     const moonInfo = drawMoon(ctx, w, h, LST, observerLat, { ra: moonRA, dec: moonDec }, simTime);
 
@@ -98,7 +103,7 @@ function drawSky(nowMs) {
     drawHorizonAndCardinals(ctx, w, h);
     drawAltitudeMarkings(ctx, w, h);
 
-    return moonInfo;
+    return { moonInfo, visiblePlanetsCount: Object.keys(projectedPlanets).length };
 }
 
 // -------------------------------
@@ -117,12 +122,12 @@ function animate(ts) {
     LST = getLST(simTime, observerLonDeg);
     updateMoonPosition(dtSimMs);
 
-    const moonInfo = drawSky(ts);
+    const { moonInfo, visiblePlanetsCount } = drawSky(ts);
 
     const illumPct = moonInfo ? Math.round(moonInfo.illum * 100) : 0;
     infoBox.textContent = simTime.toLocaleString('pt-BR') +
         (moonInfo ? ` · Lua: ${illumPct}% iluminada` : ' · Lua abaixo do horizonte') +
-        ` · ${stars.length} estrelas`;
+        ` · ${stars.length} estrelas · ${visiblePlanetsCount} planeta(s) visível(is)`;
 
     requestAnimationFrame(animate);
 }
