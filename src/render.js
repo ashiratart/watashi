@@ -2,7 +2,7 @@
 // render.js — desenho no canvas
 // -------------------------------------------------------------
 import {
-    equatorialToHorizontal, project, raToRad, decToRad,
+    equatorialToHorizontal, project, domeGeometry, raToRad, decToRad,
     extinctionFactor, twinkleFactor, getMoonPhase
 } from './astro.js';
 
@@ -35,7 +35,7 @@ export function drawMilkyWay(ctx, bands, w, h, lst, observerLat) {
 
         for (const ring of band.rings) {
             ctx.beginPath();
-            let prevX = null;
+            let started = false;
 
             for (const [raHours, decDeg] of ring) {
                 const ra = raToRad(raHours);
@@ -43,14 +43,14 @@ export function drawMilkyWay(ctx, bands, w, h, lst, observerLat) {
                 const { alt, az } = equatorialToHorizontal(ra, dec, lst, observerLat);
                 const { x, y } = project(alt, az, w, h);
 
-                // Quebra o traço quando o ponto "pula" pro outro lado do canvas
-                // (costura em RA=0h/24h da projeção equirretangular).
-                if (prevX === null || Math.abs(x - prevX) > w / 2) {
+                // Na projeção circular (zênite no centro) o azimute é contínuo
+                // (via seno/cosseno) — não há mais costura em RA=0h/24h pra cortar.
+                if (!started) {
                     ctx.moveTo(x, y);
+                    started = true;
                 } else {
                     ctx.lineTo(x, y);
                 }
-                prevX = x;
             }
             ctx.stroke();
         }
@@ -107,6 +107,8 @@ export function drawConstellationLines(ctx, projectedStars, constellationLines) 
 }
 
 export function drawAltitudeMarkings(ctx, w, h) {
+    const { cx, cy, R } = domeGeometry(w, h);
+
     ctx.save();
     ctx.globalAlpha = 0.25;
     ctx.strokeStyle = '#8a7a5a';
@@ -115,47 +117,51 @@ export function drawAltitudeMarkings(ctx, w, h) {
 
     const altitudes = [30, 60];
     altitudes.forEach(deg => {
-        const alt = deg * Math.PI / 180;
-        const y = h * (1 - alt / (Math.PI / 2));
+        const rho = R * (1 - deg / 90);
         ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(w, y);
+        ctx.arc(cx, cy, rho, 0, 2 * Math.PI);
         ctx.stroke();
     });
 
     ctx.setLineDash([]);
     ctx.globalAlpha = 0.8;
-    ctx.font = "bold 14px 'Segoe UI', Arial, sans-serif";
+    ctx.font = "bold 13px 'Segoe UI', Arial, sans-serif";
     ctx.fillStyle = '#d4c4a4';
     ctx.shadowColor = '#000';
     ctx.shadowBlur = 6;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
+    // Rótulos das altitudes ao longo da diagonal nordeste, pra não
+    // colidir com os rótulos dos pontos cardeais.
+    const labelAz = Math.PI / 4;
     altitudes.forEach(deg => {
-        const alt = deg * Math.PI / 180;
-        const y = h * (1 - alt / (Math.PI / 2));
-        if (y > 20 && y < h - 20) ctx.fillText(deg + '°', 30, y);
+        const rho = R * (1 - deg / 90);
+        const x = cx + rho * Math.sin(labelAz);
+        const y = cy - rho * Math.cos(labelAz);
+        ctx.fillText(deg + '°', x, y);
     });
 
+    // Zênite
     ctx.beginPath();
-    ctx.arc(30, 10, 6, 0, 2 * Math.PI);
+    ctx.arc(cx, cy, 4, 0, 2 * Math.PI);
     ctx.fillStyle = '#ffecb3';
     ctx.fill();
     ctx.fillStyle = '#ffffff';
-    ctx.fillText('Zênite', 30, 30);
+    ctx.fillText('Zênite', cx, cy - 18);
 
     ctx.shadowBlur = 0;
     ctx.restore();
 }
 
 export function drawHorizonAndCardinals(ctx, w, h) {
+    const { cx, cy, R } = domeGeometry(w, h);
+
     ctx.save();
     ctx.strokeStyle = 'rgba(160, 120, 60, 0.8)';
     ctx.lineWidth = 2;
     ctx.beginPath();
-    ctx.moveTo(0, h);
-    ctx.lineTo(w, h);
+    ctx.arc(cx, cy, R, 0, 2 * Math.PI);
     ctx.stroke();
 
     const cardinals = [
@@ -173,14 +179,18 @@ export function drawHorizonAndCardinals(ctx, w, h) {
     ctx.textBaseline = 'middle';
 
     cardinals.forEach(c => {
-        const { x } = project(0, c.az, w, h);
-        const y = h;
+        // Marcador em cima do círculo do horizonte, rótulo logo fora dele
+        const mx = cx + R * Math.sin(c.az);
+        const my = cy - R * Math.cos(c.az);
+        const lx = cx + (R + 22) * Math.sin(c.az);
+        const ly = cy - (R + 22) * Math.cos(c.az);
+
         ctx.beginPath();
-        ctx.arc(x, y - 10, 5, 0, 2 * Math.PI);
+        ctx.arc(mx, my, 5, 0, 2 * Math.PI);
         ctx.fillStyle = '#a58e6d';
         ctx.fill();
         ctx.fillStyle = '#ffecb3';
-        ctx.fillText(c.name, x, y - 30);
+        ctx.fillText(c.name, lx, ly);
     });
 
     ctx.shadowBlur = 0;

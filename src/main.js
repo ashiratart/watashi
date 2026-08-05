@@ -4,7 +4,7 @@
 import { REAL_STARS } from './data/stars-catalog.js';
 import { CONSTELLATION_LINES } from './data/constellations.js';
 import { MILKY_WAY_BANDS } from './data/milky-way.js';
-import { getLST, raToRad, decToRad } from './astro.js';
+import { getLST, raToRad, decToRad, domeGeometry } from './astro.js';
 import { getVisiblePlanets } from './planets.js';
 import {
     drawMilkyWay, drawStars, drawConstellationLines,
@@ -83,12 +83,40 @@ speedInput.addEventListener('change', () => {
 });
 nowBtn.addEventListener('click', setNow);
 
+// Painel educativo (recolhível, ocupa a margem fora do domo)
+const eduPanel = document.getElementById('edu-panel');
+const eduToggle = document.getElementById('eduToggle');
+eduToggle.addEventListener('click', () => {
+    const collapsed = eduPanel.classList.toggle('collapsed');
+    eduToggle.textContent = collapsed ? '+' : '−';
+    eduToggle.setAttribute('aria-label', collapsed ? 'Expandir painel' : 'Recolher painel');
+});
+
 // -------------------------------
 // DESENHO PRINCIPAL
 // -------------------------------
 function drawSky(nowMs) {
     ctx.fillStyle = '#000814';
     ctx.fillRect(0, 0, w, h);
+
+    const { cx, cy, R } = domeGeometry(w, h);
+
+    // Área "abaixo do horizonte" (fora do domo) — sutilmente mais escura,
+    // só pra deixar claro que ali não é céu.
+    ctx.save();
+    ctx.fillStyle = '#04060b';
+    ctx.beginPath();
+    ctx.rect(0, 0, w, h);
+    ctx.arc(cx, cy, R, 0, 2 * Math.PI, true);
+    ctx.fill('evenodd');
+    ctx.restore();
+
+    // Recorta o desenho do céu dentro do círculo do domo — evita ter que
+    // filtrar manualmente cada ponto abaixo do horizonte.
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, cy, R, 0, 2 * Math.PI);
+    ctx.clip();
 
     drawMilkyWay(ctx, MILKY_WAY_BANDS, w, h, LST, observerLat);
 
@@ -100,6 +128,9 @@ function drawSky(nowMs) {
     const moonInfo = drawMoon(ctx, w, h, LST, observerLat, { ra: moonRA, dec: moonDec }, simTime);
 
     drawConstellationLines(ctx, projectedStars, CONSTELLATION_LINES);
+
+    ctx.restore(); // fim do recorte do domo
+
     drawHorizonAndCardinals(ctx, w, h);
     drawAltitudeMarkings(ctx, w, h);
 

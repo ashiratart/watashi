@@ -43,10 +43,22 @@ export function equatorialToHorizontal(ra, dec, lst, observerLat) {
     return { alt, az };
 }
 
-// Projeção: horizonte na base (y = h), zênite no topo (y = 0), sul centralizado.
+// Projeção azimutal (zenital equidistante) — o mesmo tipo de projeção
+// usada em fotos fisheye de céu completo e em planetários reais.
+// Zênite fica no CENTRO da tela; horizonte é um CÍRCULO ao redor.
+// Isso evita a distorção de esticar o zênite numa linha inteira, que
+// acontece na projeção retangular (equirretangular) horizonte-embaixo.
+export function domeGeometry(w, h) {
+    const R = Math.min(w, h) * 0.47; // raio do domo, com margem
+    return { cx: w / 2, cy: h / 2, R };
+}
+
 export function project(alt, az, w, h) {
-    const x = (az * w / (2 * Math.PI) + w / 2) % w;
-    const y = h * (1 - alt / (Math.PI / 2));
+    const { cx, cy, R } = domeGeometry(w, h);
+    const rho = R * (1 - alt / (Math.PI / 2)); // 0 no zênite, R no horizonte
+    // az=0 (Norte) aponta pra cima da tela; cresce em sentido horário.
+    const x = cx + rho * Math.sin(az);
+    const y = cy - rho * Math.cos(az);
     return { x, y };
 }
 
